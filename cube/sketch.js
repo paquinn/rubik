@@ -34,12 +34,22 @@ function init() {
     scene.add( light );
     scene.add( new THREE.AmbientLight( 0x505050 ) );
 
-    const geometry = new THREE.IcosahedronGeometry( 0.5, 3 );
+    const ico = new THREE.IcosahedronGeometry( 0.5, 3 );
+
     const box = new THREE.BoxGeometry(3, 3, 3);
+
+    const geometry = ico;
+    const wireframe = new THREE.WireframeGeometry( geometry );
+    const line = new THREE.LineSegments( wireframe );
+    line.material.depthTest = false;
+    line.material.opacity = 0.25;
+    line.material.transparent = true;
+
+    scene.add( line );
 
     const material = new THREE.MeshPhongMaterial( { color: 0xff0055 } );
 
-    mesh = new THREE.Mesh(box, material);
+    mesh = new THREE.Mesh(geometry, material);
     scene.add(mesh);
 }
 
