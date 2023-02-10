@@ -2,90 +2,49 @@ import Stats from 'three/examples/jsm/libs/stats.module.js';
 import * as THREE from 'three';
 
 let stats;
+let camera, scene, renderer, controls;
+let mesh;
+let container;
 
-function resizeRendererToDisplaySize(renderer) {
-    const canvas = renderer.domElement;
-    const pixelRatio = window.devicePixelRatio;
-    const width  = canvas.clientWidth  * pixelRatio | 0;
-    const height = canvas.clientHeight * pixelRatio | 0;
-    const needResize = canvas.width !== width || canvas.height !== height;
-    if (needResize) {
-        renderer.setSize(width, height, false);
-    }
-    return needResize;
-}
+const size = 3;
 
-function main() {
-    const canvas = document.querySelector('#c');
-    const renderer = new THREE.WebGLRenderer({canvas});
+const mouse = new THREE.Vector2(1, 1);
+
+init();
+
+function init() {
+    container = document.getElementById( 'c' );
+    renderer = new THREE.WebGLRenderer( { antialias: true } );
     renderer.setPixelRatio( window.devicePixelRatio );
     renderer.setSize( window.innerWidth, window.innerHeight );
+    container.appendChild( renderer.domElement );
 
-    const fov = 75;
-    const aspect = 2;  // the canvas default
-    const near = 0.1;
-    const far = 5;
-    const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-    camera.position.z = 2;
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color( 0xf0f0f0 );
+
+    camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
+    camera.position.set( 10, 10, 10 );
+    camera.lookAt( 0, 0, 0 );
+    scene.add( camera );
 
 
-    const scene = new THREE.Scene();
+    const light = new THREE.HemisphereLight( 0xffffff, 0x888888 );
+    light.position.set( 0, 20, 0 );
 
-    {
-        const color = 0xFFFFFF;
-        const intensity = 1;
-        const light = new THREE.DirectionalLight(color, intensity);
-        light.position.set(-1, 2, 4);
-        scene.add(light);
-    }
+    scene.add( light );
+    scene.add( new THREE.AmbientLight( 0x505050 ) );
 
-    const boxWidth = 1;
-    const boxHeight = 1;
-    const boxDepth = 1;
-    const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+    const geometry = new THREE.IcosahedronGeometry( 0.5, 3 );
+    const box = new THREE.BoxGeometry(3, 3, 3);
 
-    stats = new Stats();
-    document.body.appendChild( stats.dom );
+    const material = new THREE.MeshPhongMaterial( { color: 0xff0055 } );
 
-    function makeInstance(geometry, color, x) {
-        const material = new THREE.MeshPhongMaterial({color});
-
-        const cube = new THREE.Mesh(geometry, material);
-        scene.add(cube);
-
-        cube.position.x = x;
-
-        return cube;
-    }
-
-    const cubes = [
-        makeInstance(geometry, 0x44aa88,  0),
-        makeInstance(geometry, 0x8844aa, -2),
-        makeInstance(geometry, 0xaa8844,  2),
-    ];
-
-    function render(time) {
-        time *= 0.001;
-
-        if (resizeRendererToDisplaySize(renderer)) {
-            const canvas = renderer.domElement;
-            camera.aspect = canvas.clientWidth / canvas.clientHeight;
-            camera.updateProjectionMatrix();
-        }
-        cubes.forEach((cube, ndx) => {
-            const speed = 1 + ndx * .1;
-            const rot = time * speed;
-            cube.rotation.x = rot;
-            cube.rotation.y = rot;
-        });
-
-        renderer.render(scene, camera);
-
-        requestAnimationFrame(render);
-        stats.update();
-    }
-
-    requestAnimationFrame(render);
+    mesh = new THREE.Mesh(box, material);
+    scene.add(mesh);
 }
 
-main();
+function render() {
+    renderer.render(scene, camera);
+}
+
+render();
