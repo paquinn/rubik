@@ -1,5 +1,8 @@
-import Stats from 'three/examples/jsm/libs/stats.module.js';
 import * as THREE from 'three';
+
+import Stats from 'three/examples/jsm/libs/stats.module.js';
+import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
+
 
 let stats;
 let camera, scene, renderer, controls;
@@ -38,7 +41,7 @@ function init() {
 
     const box = new THREE.BoxGeometry(3, 3, 3);
 
-    const geometry = ico;
+    const geometry = box;
     const wireframe = new THREE.WireframeGeometry( geometry );
     const line = new THREE.LineSegments( wireframe );
     line.material.depthTest = false;
@@ -48,13 +51,59 @@ function init() {
     scene.add( line );
 
     const material = new THREE.MeshPhongMaterial( { color: 0xff0055 } );
-
+    material.wireframe=true;
     mesh = new THREE.Mesh(geometry, material);
+
+    const gui = new GUI();
+    const meshFolder = gui.addFolder('Mesh');
+    meshFolder.add(mesh.rotation, 'x', 0, Math.PI * 2);
+    meshFolder.add(mesh.rotation, 'y', 0, Math.PI * 2);
+    meshFolder.add(mesh.rotation, 'z', 0, Math.PI * 2);
+    meshFolder.open();
+
+    const cameraFolder = gui.addFolder('Camera');
+    cameraFolder.add(camera.position, 'y', 0, 10);
+    cameraFolder.open();
+
+    const wireframeFolder = gui.addFolder('Wireframe');
+    wireframeFolder.add(material, 'wireframe', true, false);
+
+    let isEnabled = false;
+
+    const props = {
+        get 'Enabled'() {
+            console.log("GET");
+            return line.visible;
+        },
+        set 'Enabled'(v) {
+            console.log("SET", v);
+            isEnabled = v;
+            line.visible = v;
+        }
+    };
+
+    gui.add(props, 'Enabled' );
+
+
     scene.add(mesh);
+
+}
+
+window.addEventListener('resize', onWindowResize, false)
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight
+    camera.updateProjectionMatrix()
+    renderer.setSize(window.innerWidth, window.innerHeight)
+    render()
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    render();
 }
 
 function render() {
     renderer.render(scene, camera);
 }
 
-render();
+animate();
