@@ -37,8 +37,6 @@ function init() {
     scene.add( light );
     scene.add( new THREE.AmbientLight( 0x505050 ) );
 
-    const ico = new THREE.IcosahedronGeometry( 0.5, 3 );
-
     const box = new THREE.BoxGeometry(3, 3, 3);
 
     const geometry = box;
