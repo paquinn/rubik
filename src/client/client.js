@@ -9,7 +9,7 @@ import fragmentShader from "../shaders/face.frag";
 
 let stats;
 let camera, scene, renderer, controls, raycaster;
-let clock, action;
+let clock;
 let mixers = [];
 let actions = [];
 
@@ -21,7 +21,8 @@ let front = [];
 // let mesh;
 let container;
 
-const size = 3;
+const AXIS = 3;
+const SIZE = 3;
 
 let INTERSECTED;
 let pointer;
@@ -29,7 +30,7 @@ let moving = false;
 
 
 function makeSide(c) {
-    return Array(size * size).fill(c);
+    return Array(SIZE * SIZE).fill(c);
 }
 
 let faceColors = [0xffff00, 0xff00ff, 0xffffff, 0xff0000, 0x00ff00, 0x0000ff];
@@ -64,7 +65,19 @@ const state = [
 
 const cubes = [[], [], [], [], [], []];
 const animationGroups = [new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup()];
-const layers = [];
+
+// Axis layers: [X, Y, Z]
+const animationAxisLayers = [];
+for (let i = 0; i < AXIS; i++) {
+    let layers = [];
+    for (let j = 0; j < SIZE; j++) {
+        layers.push(new THREE.AnimationObjectGroup());
+    }
+    animationAxisLayers.push(layers);
+}
+const layerMixers = [];
+const rotationActions = [];
+
 init();
 
 function rotate() {
@@ -72,22 +85,22 @@ function rotate() {
 }
 
 function transpose(arr) {
-    for (let n = 0; n < size - 1; n++) {
-        for (let m = n + 1; m <  size; m++) {
-            let temp = arr[n + m * size];
-            arr[n + m * size] = arr[m + n * size];
-            arr[m + n * size] = temp;
+    for (let n = 0; n < SIZE - 1; n++) {
+        for (let m = n + 1; m <  SIZE; m++) {
+            let temp = arr[n + m * SIZE];
+            arr[n + m * SIZE] = arr[m + n * SIZE];
+            arr[m + n * SIZE] = temp;
         }
     }
 }
 
 function flipRows(arr) {
-    for (let n = 0; n < size; n++) {
-        for (let m = 0; m < size / 2; m++) {
-            let b = size - 1 - m;
-            let temp = arr[b + n * size];
-            arr[b + n * size] = arr[m + n * size];
-            arr[m + n * size] = temp;
+    for (let n = 0; n < SIZE; n++) {
+        for (let m = 0; m < SIZE / 2; m++) {
+            let b = SIZE - 1 - m;
+            let temp = arr[b + n * SIZE];
+            arr[b + n * SIZE] = arr[m + n * SIZE];
+            arr[m + n * SIZE] = temp;
         }
     }
 }
@@ -131,8 +144,14 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0xf0f0f0 );
 
+
+
     camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
     camera.position.set( 10, 10, 10 );
+    const cameraPosition = JSON.parse(localStorage.getItem('cameraPosition'));
+    if (cameraPosition) {
+        camera.position.copy(cameraPosition);
+    }
     camera.lookAt( 0, 0, 0 );
     scene.add( camera );
 
@@ -140,6 +159,9 @@ function init() {
     pointer = new THREE.Vector2(1, 1);
 
     controls = new OrbitControls(camera, renderer.domElement);
+    controls.addEventListener('end', (e) => {
+        localStorage.cameraPosition = JSON.stringify(camera.position);
+    });
 
 
     // const light = new THREE.HemisphereLight( 0xffffff, 0x888888 );
@@ -163,81 +185,88 @@ function init() {
     animationGroup = new THREE.AnimationObjectGroup();
     frontSlice = new THREE.AnimationObjectGroup();
 
-    let offset = (size / 2) - 0.5;
+    let offset = (SIZE / 2) - 0.5;
     let id = 0;
-    for (let z = 0; z < size; z++) {
-        for (let y = 0; y < size; y++) {
-            for (let x = 0; x < size; x++) {
+    for (let z = 0; z < SIZE; z++) {
+        for (let y = 0; y < SIZE; y++) {
+            for (let x = 0; x < SIZE; x++) {
+                if (x % (SIZE - 1) === 0 || y % (SIZE - 1) === 0 || z % (SIZE - 1) === 0) {
 
-                const material = new THREE.MeshBasicMaterial({ vertexColors: true });
-                // const material = new THREE.ShaderMaterial({
-                //     vertexColors: true,
-                //     vertexShader,
-                //     fragmentShader
-                // });
-                const pieces = geometry.toNonIndexed();
-                const colors = [];
-                const color = new THREE.Color();
+                    const material = new THREE.MeshBasicMaterial({vertexColors: true});
+                    // const material = new THREE.ShaderMaterial({
+                    //     vertexColors: true,
+                    //     vertexShader,
+                    //     fragmentShader
+                    // });
+                    const pieces = geometry.toNonIndexed();
+                    const colors = [];
+                    const color = new THREE.Color();
 
-                for (let i = 0; i < 6; i++) {
-                    // color.setHex(faceColors[i]);
-                    color.setHex(0x000000);
-                    colors.push(color.r, color.g, color.b);
-                    colors.push(color.r, color.g, color.b);
-                    colors.push(color.r, color.g, color.b);
+                    for (let i = 0; i < 6; i++) {
+                        // color.setHex(faceColors[i]);
+                        color.setHex(0x000000);
+                        colors.push(color.r, color.g, color.b);
+                        colors.push(color.r, color.g, color.b);
+                        colors.push(color.r, color.g, color.b);
 
-                    colors.push(color.r, color.g, color.b);
-                    colors.push(color.r, color.g, color.b);
-                    colors.push(color.r, color.g, color.b);
+                        colors.push(color.r, color.g, color.b);
+                        colors.push(color.r, color.g, color.b);
+                        colors.push(color.r, color.g, color.b);
+                    }
+
+                    pieces.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+                    const object = new THREE.Mesh(pieces, material);
+                    const pivot = new THREE.Object3D();
+                    object.cubeId = id;
+                    object.x = x;
+                    object.y = y;
+                    object.z = z;
+
+                    object.position.x = x - offset;
+                    object.position.y = y - offset;
+                    object.position.z = z - offset;
+
+                    pivot.add(object);
+                    group.add(pivot);
+
+                    animationGroup.add(pivot);
+
+                    animationAxisLayers[0][x].add(pivot);
+                    animationAxisLayers[1][y].add(pivot);
+                    animationAxisLayers[2][z].add(pivot);
+
+                    if (x === 0) {
+                        frontSlice.add(pivot);
+                        front.push(object);
+                    }
+
+                    if (x === SIZE - 1) {
+                        cubes[0].push(object);
+                        animationGroups[0].add(pivot);
+                    }
+                    if (x === 0) {
+                        cubes[1].push(object);
+                        animationGroups[1].add(pivot);
+                    }
+                    if (y === SIZE - 1) {
+                        cubes[2].push(object);
+                        animationGroups[2].add(pivot);
+                    }
+                    if (y === 0) {
+                        cubes[3].push(object);
+                        animationGroups[3].add(pivot);
+                    }
+                    if (z === SIZE - 1) {
+                        cubes[4].push(object);
+                        animationGroups[4].add(pivot);
+                    }
+                    if (z === 0) {
+                        cubes[5].push(object);
+                        animationGroups[5].add(pivot);
+                    }
+                    id++;
                 }
-
-                pieces.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-                const object = new THREE.Mesh(pieces, material);
-                const pivot = new THREE.Object3D();
-                object.cubeId = id;
-                object.x = x;
-                object.y = y;
-                object.z = z;
-
-                object.position.x = x - offset;
-                object.position.y = y - offset;
-                object.position.z = z - offset;
-
-                pivot.add(object);
-                group.add(pivot);
-                animationGroup.add(pivot);
-
-                if (x === 0) {
-                    frontSlice.add(pivot);
-                    front.push(object);
-                }
-
-                if (x === size - 1) {
-                    cubes[0].push(object);
-                    animationGroups[0].add(pivot);
-                }
-                if (x === 0) {
-                    cubes[1].push(object);
-                    animationGroups[1].add(pivot);
-                }
-                if (y === size - 1) {
-                    cubes[2].push(object);
-                    animationGroups[2].add(pivot);
-                }
-                if (y === 0) {
-                    cubes[3].push(object);
-                    animationGroups[3].add(pivot);
-                }
-                if (z === size - 1) {
-                    cubes[4].push(object);
-                    animationGroups[4].add(pivot);
-                }
-                if (z === 0) {
-                    cubes[5].push(object);
-                    animationGroups[5].add(pivot);
-                }
-                id++;
             }
         }
     }
@@ -261,13 +290,14 @@ function init() {
         mixer.addEventListener('finished', (e) => {
             moving = false;
             updateColors();
-            // animation = null;
         });
-        action = mixer.clipAction(clip);
+
+        let action = mixer.clipAction(clip);
         action.setLoop(THREE.LoopOnce);
 
         return [mixer, action];
     }
+
 
     let axis = [xAxis, xAxis, yAxis, yAxis, zAxis, zAxis];
     let d90 = Math.PI / 2;
@@ -278,13 +308,71 @@ function init() {
         actions.push(a);
     }
 
+
+    let axisArray = [xAxis, yAxis, zAxis];
+    let rotationArray = [Math.PI / 2, -Math.PI / 2, Math.PI];
+    let duration = 1;
+
+
+    for (let i = 0; i < AXIS; i++) {
+        let animationLayers = animationAxisLayers[i];
+        let axis = axisArray[i];
+        let axisActions = [];
+
+        for (let k = 0; k < rotationArray.length; k++) {
+            let rotation = rotationArray[k];
+            const qInitial = new THREE.Quaternion().setFromAxisAngle( axis, 0 );
+            const qFinal = new THREE.Quaternion().setFromAxisAngle( axis, rotation);
+
+            const quaternionKF = new THREE.QuaternionKeyframeTrack( '.quaternion', [ 0, duration ], [ qInitial.x, qInitial.y, qInitial.z, qInitial.w, qFinal.x, qFinal.y, qFinal.z, qFinal.w] );
+            const clip = new THREE.AnimationClip( 'Rotation.' + i + "." + k, duration, [ quaternionKF ] );
+
+            let layerActions = [];
+
+            for (let j = 0; j < SIZE; j++) {
+                const layerGroup = animationLayers[j];
+                const mixer = new THREE.AnimationMixer( layerGroup );
+                mixer.addEventListener('finished', (e) => {
+                    moving = false;
+                    updateColors();
+                });
+
+                layerMixers.push(mixer);
+
+
+                let action = mixer.clipAction(clip);
+                action.setLoop(THREE.LoopOnce);
+                layerActions.push(action);
+            }
+            axisActions.push(layerActions);
+        }
+        rotationActions.push(axisActions);
+    }
+
     clock = new THREE.Clock();
 
     const gui = new GUI();
+    let rotationProps = {
+        axis: 0,
+        layer: 0,
+        rotation: 0,
+        rotate: function() {
+            console.log(`Rotating ${rotationProps.axis} ${rotationProps.layer} ${rotationProps.rotation}`);
+            let action = rotationActions[rotationProps.axis][rotationProps.rotation][rotationProps.layer];
+            if (!moving) {
+                moving = true;
+                action.stop();
+                action.play();
+            }
+        }
+    };
+
     const rotationFolder = gui.addFolder('Rotation');
-    rotationFolder.add(group.rotation, 'x', 0, 2 * Math.PI);
-    rotationFolder.add(group.rotation, 'y', 0, 2 * Math.PI);
-    rotationFolder.add(group.rotation, 'z', 0, 2 * Math.PI);
+    rotationFolder.add(rotationProps, 'axis', 0, AXIS - 1, 1);
+    rotationFolder.add(rotationProps, 'layer', 0, SIZE - 1, 1);
+    rotationFolder.add(rotationProps, 'rotation', 0, 2, 1);
+    rotationFolder.add(rotationProps, 'rotate');
+
 
     stats = new Stats();
     document.body.appendChild( stats.dom );
@@ -296,10 +384,10 @@ function init() {
     // wireframeFolder.add(material, 'wireframe', true, false);
 
 
-    const grid_size = 10;
+    const gridSize = 10;
     const divisions = 10;
 
-    const gridHelper = new THREE.GridHelper( grid_size, divisions );
+    const gridHelper = new THREE.GridHelper( gridSize, divisions );
     scene.add( gridHelper );
 
     const axesHelper = new THREE.AxesHelper( 10 );
@@ -383,6 +471,9 @@ function render() {
     const delta = clock.getDelta();
     for (let i = 0; i < mixers.length; i++) {
         mixers[i].update( delta );
+    }
+    for (let i = 0; i < layerMixers.length; i++) {
+        layerMixers[i].update(delta);
     }
 
     renderer.render(scene, camera);
