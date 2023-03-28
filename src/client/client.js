@@ -15,70 +15,121 @@ let actions = [];
 
 let group;
 let animationGroup;
-let frontSlice;
-let front = [];
 
 // let mesh;
 let container;
 
 const AXIS = 3;
-const SIZE = 3;
+const SIZE = 9;
+
+const ANIMATION_DURATION = 0.25;
 
 let INTERSECTED;
 let pointer;
 let moving = false;
 
+let rotationProps;
 
-function makeSide(c) {
-    return Array(SIZE * SIZE).fill(c);
+
+let faceColors = [0xffffff, 0xff00ff, 0xffff00, 0xff0000, 0x00ff00, 0x0000ff];
+// const state = [
+//     [
+//         1, 1, 1,
+//         1, 0, 0,
+//         0, 0, 0,
+//     ], [
+//         0, 0, 0,
+//         0, 1, 1,
+//         1, 1, 1,
+//     ], [
+//         0, 0, 0,
+//         0, 2, 2,
+//         2, 2, 2,
+//     ], [
+//         0, 0, 0,
+//         0, 3, 3,
+//         3, 3, 3,
+//     ], [
+//         0, 0, 0,
+//         0, 4, 4,
+//         4, 4, 4,
+//     ], [
+//         0, 0, 0,
+//         0, 5, 5,
+//         5, 5, 5
+//     ]
+// ];
+
+function makeSide(color) {
+    let side = [];
+    for (let i = 0; i < SIZE * SIZE; i++) {
+        side.push(color);
+    }
+    return side;
 }
 
-let faceColors = [0xffff00, 0xff00ff, 0xffffff, 0xff0000, 0x00ff00, 0x0000ff];
-// const state = [makeSide(0), makeSide(1), makeSide(2), makeSide(3), makeSide(4), makeSide(5)];
-const state = [
-    [
-        1, 1, 1,
-        1, 0, 0,
-        0, 0, 0,
-    ], [
-        0, 0, 0,
-        0, 1, 1,
-        1, 1, 1,
-    ], [
-        0, 0, 0,
-        0, 2, 2,
-        2, 2, 2,
-    ], [
-        0, 0, 0,
-        0, 3, 3,
-        3, 3, 3,
-    ], [
-        0, 0, 0,
-        0, 4, 4,
-        4, 4, 4,
-    ], [
-        0, 0, 0,
-        0, 5, 5,
-        5, 5, 5
-    ]
-];
 
-const cubes = [[], [], [], [], [], []];
-const animationGroups = [new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup()];
+const  state = [
+    makeSide(0),
+    makeSide(1),
+    makeSide(2),
+    makeSide(3),
+    makeSide(4),
+    makeSide(5)
+]
 
-// Axis layers: [X, Y, Z]
+// Cube axis colors
+// Order: [cube id][axis]
+let cubeState;
+
+const cubes = [];
+const cubeIdPosition = [];
+// Order: [axis][layer]
+const cubeAxisLayers = [];
+// Order: [axis][layer][index]
+const cubeAxisLayers2D = [];
+// const cubes = [[], [], [], [], [], []];
+// const animationGroups = [new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup(), new THREE.AnimationObjectGroup()];
+
+// Order: [axis][layer]
 const animationAxisLayers = [];
+
 for (let i = 0; i < AXIS; i++) {
-    let layers = [];
+    let animationLayer = [];
+    let cubeLayer = [];
+    let cubeLayer2D = [];
     for (let j = 0; j < SIZE; j++) {
-        layers.push(new THREE.AnimationObjectGroup());
+        animationLayer.push(new THREE.AnimationObjectGroup());
+        cubeLayer.push([]);
+        cubeLayer2D.push([]);
     }
-    animationAxisLayers.push(layers);
+    animationAxisLayers.push(animationLayer);
+    cubeAxisLayers.push(cubeLayer);
+    cubeAxisLayers2D.push(cubeLayer2D);
 }
 const layerMixers = [];
+// Order: [axis][rotation dir][layer]
 const rotationActions = [];
 
 init();
+
+// function makeCubeSides() {
+//     let index = 0;
+//     for (let z = 0; z < SIZE; z++ ) {
+//         for (let y = 0; y < SIZE; y++) {
+//             for (let x = 0; x  <  SIZE; x++) {
+//                 if (x % (SIZE - 1) === 0 || y % (SIZE - 1) === 0 || z % (SIZE - 1) === 0) {
+//
+//                     let cube = {index, sides, x, y, z};
+//                     cubes.push(cube);
+//                     index += 1;
+//                 }
+//             }
+//         }
+//     }
+//
+//     console.log("CUBES", cubes);
+// }
 
 function rotate() {
 
@@ -105,34 +156,129 @@ function flipRows(arr) {
     }
 }
 
-function rotateSide(side) {
+function rotateSide(side, arr) {
     if (side === 0 || side === 4 || side === 3) {
-        transpose(state[side]);
-        flipRows(state[side]);
+        transpose(arr);
+        flipRows(arr);
     } else {
-        flipRows(state[side]);
-        transpose(state[side]);
+        flipRows(arr);
+        transpose(arr);
+    }
+}
+
+
+function setState() {
+    let cubeColors = [];
+    let cubeAxisColors = [];
+    let c = new THREE.Color();
+    for (let i = 0; i < cubes.length; i++) {
+        let cube = cubes[i];
+        let x = cube.x;
+        let y = cube.y;
+        let z = cube.z;
+        let sides = cube.sides;
+        let id = cube.id;
+        let axisIndex = [y + z * SIZE, x + z * SIZE, x + y * SIZE];
+
+        let cubeColor = [];
+        let axisColors = [0, 0, 0];
+        for (let j = 0; j < sides.length; j++) {
+            let side = sides[j];
+            let axis = Math.floor(side / 2)
+            let index = axisIndex[axis];
+            let colors = cube.geometry.attributes.color;
+            let colorIndex = state[side][index];
+            axisColors[axis] = colorIndex + 1;
+            let hex = faceColors[colorIndex];
+            cubeColor.push(colorIndex);
+        }
+        cubeColors.push(cubeColor);
+        cubeAxisColors.push(axisColors);
+    }
+
+    return cubeAxisColors;
+}
+
+
+function tryMove(axis, rotation, layer) {
+    if (!moving) {
+        moving = true;
+        startMove(axis, rotation, layer);
+    }
+}
+
+function startMove(axis, rotation, layer) {
+    let action = rotationActions[axis][rotation][layer];
+    action.reset();
+    action.setDuration(rotationProps.duration);
+    action.play();
+
+    let cubes = cubeAxisLayers[axis][layer];
+    let swapped = [];
+    cubeAxisLayers2D[axis][layer].forEach(function (cube, index) {
+        let colors = [...cubeState[cube.cubeId]];
+        let a = (axis + 1) % AXIS;
+        let b = (axis + 2) % AXIS;
+
+        if (rotation !== 2) {
+            let tmp = colors[a];
+            colors[a] = colors[b];
+            colors[b] = tmp;
+        }
+
+        let position = [cube.x, cube.y, cube.z];
+        let axis2 = position[a];
+        let axis3 = position[b];
+
+        let moved;
+        if (rotation === 0) {
+            moved = (SIZE - axis3 - 1) + SIZE * axis2;
+        } else if (rotation === 1) {
+            moved = axis3 + (SIZE - axis2 - 1) * SIZE;
+        } else {
+            moved = (SIZE - axis2 - 1) + (SIZE - axis3 - 1) * SIZE;
+        }
+
+        swapped.push({colors, moved});
+
+    });
+
+    for (let i = 0; i < swapped.length; i++) {
+        let swap = swapped[i];
+        let colors = swap.colors;
+        let moved = swap.moved;
+        let cube = cubeAxisLayers2D[axis][layer][moved];
+        cubeState[cube.cubeId] = colors;
     }
 }
 
 function updateColors() {
-    console.log("COLORS", state);
     let c = new THREE.Color();
-    for (let side = 0; side < state.length; side++) {
-        let objects = cubes[side];
+    for (let i = 0; i < cubes.length; i++) {
+        let cube = cubes[i];
+        let id = cube.cubeId;
+        let sides = cube.sides;
 
-        for (let j = 0; j < objects.length; j++) {
-        let colors = objects[j].geometry.attributes.color;
+        let axisColors = cubeState[id];
+        let colors = cube.geometry.attributes.color;
+        for (let j = 0; j < sides.length; j++) {
+            let side = sides[j];
+            let axis = Math.floor(side / 2)
+            let colorIndex = axisColors[axis];
+            let color = faceColors[colorIndex - 1];
+            c.setHex(color);
             for (let k = 0; k < 6; k++) {
-                let hex = faceColors[state[side][j]];
-                c.setHex(hex);
                 colors.setXYZ(k + (side * 6), c.r, c.g, c.b);
             }
-            colors.needsUpdate = true;
         }
+        colors.needsUpdate = true;
     }
 }
 
+function endMove() {
+
+    updateColors();
+}
 
 function init() {
     container = document.getElementById( 'c' );
@@ -144,8 +290,10 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0xf0f0f0 );
 
+    let width = window.innerWidth;
+    let height = window.innerHeight;
 
-
+    // camera = new THREE.OrthographicCamera( width / -2, width / 2, height / 2, height / -2, 1, 1000);
     camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
     camera.position.set( 10, 10, 10 );
     const cameraPosition = JSON.parse(localStorage.getItem('cameraPosition'));
@@ -183,27 +331,26 @@ function init() {
 
     group = new THREE.Group();
     animationGroup = new THREE.AnimationObjectGroup();
-    frontSlice = new THREE.AnimationObjectGroup();
 
     let offset = (SIZE / 2) - 0.5;
     let id = 0;
+    let position = 0;
     for (let z = 0; z < SIZE; z++) {
         for (let y = 0; y < SIZE; y++) {
             for (let x = 0; x < SIZE; x++) {
                 if (x % (SIZE - 1) === 0 || y % (SIZE - 1) === 0 || z % (SIZE - 1) === 0) {
 
-                    const material = new THREE.MeshBasicMaterial({vertexColors: true});
-                    // const material = new THREE.ShaderMaterial({
-                    //     vertexColors: true,
-                    //     vertexShader,
-                    //     fragmentShader
-                    // });
+                    // const material = new THREE.MeshBasicMaterial({vertexColors: true});
+                    const material = new THREE.ShaderMaterial({
+                        vertexColors: true,
+                        vertexShader,
+                        fragmentShader
+                    });
                     const pieces = geometry.toNonIndexed();
                     const colors = [];
                     const color = new THREE.Color();
 
                     for (let i = 0; i < 6; i++) {
-                        // color.setHex(faceColors[i]);
                         color.setHex(0x000000);
                         colors.push(color.r, color.g, color.b);
                         colors.push(color.r, color.g, color.b);
@@ -219,6 +366,7 @@ function init() {
                     const object = new THREE.Mesh(pieces, material);
                     const pivot = new THREE.Object3D();
                     object.cubeId = id;
+                    object.positionId = position;
                     object.x = x;
                     object.y = y;
                     object.z = z;
@@ -227,52 +375,54 @@ function init() {
                     object.position.y = y - offset;
                     object.position.z = z - offset;
 
+                    let sides = []
+                    if (x === SIZE - 1) {
+                        sides.push(0);
+                    }
+                    if (x === 0) {
+                        sides.push(1);
+                    }
+                    if (y === SIZE - 1) {
+                        sides.push(2);
+                    }
+                    if (y === 0) {
+                        sides.push(3);
+                    }
+                    if (z === SIZE - 1) {
+                        sides.push(4);
+                    }
+                    if (z === 0) {
+                        sides.push(5);
+                    }
+
+                    object.sides = sides;
+
                     pivot.add(object);
                     group.add(pivot);
-
-                    animationGroup.add(pivot);
 
                     animationAxisLayers[0][x].add(pivot);
                     animationAxisLayers[1][y].add(pivot);
                     animationAxisLayers[2][z].add(pivot);
 
-                    if (x === 0) {
-                        frontSlice.add(pivot);
-                        front.push(object);
-                    }
+                    cubeAxisLayers[0][x].push(object);
+                    cubeAxisLayers[1][y].push(object);
+                    cubeAxisLayers[2][z].push(object);
 
-                    if (x === SIZE - 1) {
-                        cubes[0].push(object);
-                        animationGroups[0].add(pivot);
-                    }
-                    if (x === 0) {
-                        cubes[1].push(object);
-                        animationGroups[1].add(pivot);
-                    }
-                    if (y === SIZE - 1) {
-                        cubes[2].push(object);
-                        animationGroups[2].add(pivot);
-                    }
-                    if (y === 0) {
-                        cubes[3].push(object);
-                        animationGroups[3].add(pivot);
-                    }
-                    if (z === SIZE - 1) {
-                        cubes[4].push(object);
-                        animationGroups[4].add(pivot);
-                    }
-                    if (z === 0) {
-                        cubes[5].push(object);
-                        animationGroups[5].add(pivot);
-                    }
+                    cubeAxisLayers2D[0][x][y + SIZE * z] = object;
+                    cubeAxisLayers2D[1][y][z + SIZE * x] = object;
+                    cubeAxisLayers2D[2][z][x + SIZE * y] = object;
+
                     id++;
+                    cubes.push(object);
+                    cubeIdPosition[position] = object;
                 }
+                position++;
             }
         }
     }
 
+    cubeState = setState();
     updateColors();
-
 
     scene.add(group);
 
@@ -280,38 +430,10 @@ function init() {
     const yAxis = new THREE.Vector3( 0, 1, 0 );
     const zAxis = new THREE.Vector3( 0, 0, 1 );
 
-    function rotationAction(side, axis, dir, duration, animationGroup) {
-        const qInitial = new THREE.Quaternion().setFromAxisAngle( axis, 0 );
-        const qFinal = new THREE.Quaternion().setFromAxisAngle( axis, dir);
-        const quaternionKF = new THREE.QuaternionKeyframeTrack( '.quaternion', [ 0, duration ], [ qInitial.x, qInitial.y, qInitial.z, qInitial.w, qFinal.x, qFinal.y, qFinal.z, qFinal.w] );
-        const clip = new THREE.AnimationClip( 'Action' + side, duration, [ quaternionKF ] );
-
-        const mixer = new THREE.AnimationMixer( animationGroup );
-        mixer.addEventListener('finished', (e) => {
-            moving = false;
-            updateColors();
-        });
-
-        let action = mixer.clipAction(clip);
-        action.setLoop(THREE.LoopOnce);
-
-        return [mixer, action];
-    }
-
-
-    let axis = [xAxis, xAxis, yAxis, yAxis, zAxis, zAxis];
-    let d90 = Math.PI / 2;
-    let dirs = [d90, -d90, d90, -d90, d90, -d90];
-    for (let i = 0; i < 6; i++) {
-        let [m, a] = rotationAction(i, axis[i], dirs[i], 0.5, animationGroups[i]);
-        mixers.push(m);
-        actions.push(a);
-    }
-
 
     let axisArray = [xAxis, yAxis, zAxis];
     let rotationArray = [Math.PI / 2, -Math.PI / 2, Math.PI];
-    let duration = 1;
+    let durations = [ANIMATION_DURATION * 0.75, ANIMATION_DURATION * 0.75, ANIMATION_DURATION];
 
 
     for (let i = 0; i < AXIS; i++) {
@@ -321,6 +443,7 @@ function init() {
 
         for (let k = 0; k < rotationArray.length; k++) {
             let rotation = rotationArray[k];
+            let duration = durations[k];
             const qInitial = new THREE.Quaternion().setFromAxisAngle( axis, 0 );
             const qFinal = new THREE.Quaternion().setFromAxisAngle( axis, rotation);
 
@@ -334,7 +457,7 @@ function init() {
                 const mixer = new THREE.AnimationMixer( layerGroup );
                 mixer.addEventListener('finished', (e) => {
                     moving = false;
-                    updateColors();
+                    endMove();
                 });
 
                 layerMixers.push(mixer);
@@ -352,25 +475,21 @@ function init() {
     clock = new THREE.Clock();
 
     const gui = new GUI();
-    let rotationProps = {
+    rotationProps = {
         axis: 0,
         layer: 0,
         rotation: 0,
         rotate: function() {
-            console.log(`Rotating ${rotationProps.axis} ${rotationProps.layer} ${rotationProps.rotation}`);
-            let action = rotationActions[rotationProps.axis][rotationProps.rotation][rotationProps.layer];
-            if (!moving) {
-                moving = true;
-                action.stop();
-                action.play();
-            }
-        }
+            tryMove(rotationProps.axis, rotationProps.rotation, rotationProps.layer);
+        },
+        duration: ANIMATION_DURATION
     };
 
     const rotationFolder = gui.addFolder('Rotation');
     rotationFolder.add(rotationProps, 'axis', 0, AXIS - 1, 1);
     rotationFolder.add(rotationProps, 'layer', 0, SIZE - 1, 1);
     rotationFolder.add(rotationProps, 'rotation', 0, 2, 1);
+    rotationFolder.add(rotationProps, 'duration', 0.1, 10.0);
     rotationFolder.add(rotationProps, 'rotate');
 
 
@@ -397,6 +516,13 @@ function init() {
     window.addEventListener( 'pointermove', onPointerMove );
     window.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mouseup', onMouseUp);
+
+    // const interval = setInterval(function() {
+    //     let axis = Math.floor(Math.random() * AXIS);
+    //     let layer = Math.floor(Math.random() * SIZE);
+    //     let rotation = Math.floor(Math.random() * 2);
+    //     tryMove(axis, rotation, layer);
+    // }, ANIMATION_DURATION * 1000);
 }
 
 
@@ -426,14 +552,14 @@ function onMouseDown(event) {
         controls.enabled = false;
     }
 
-
-    if (INTERSECTED && !moving) {
-        const side = normalToSide(INTERSECTED.face.normal);
-        rotateSide(side);
-        actions[side].stop();
-        actions[side].play();
-        moving = true;
-    }
+    // if (INTERSECTED && !moving) {
+    //     const side = normalToSide(INTERSECTED.face.normal);
+    //     rotateSide(side);
+    //     actions[side].stop();
+    //     // actions[side].setDuration(rotationProps.duration);
+    //     actions[side].play();
+    //     moving = true;
+    // }
 }
 
 function onMouseUp(event) {
@@ -453,6 +579,43 @@ function onPointerMove( event ) {
     pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
     pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
+    if (INTERSECTED) {
+        if (!moving) {
+            raycaster.setFromCamera( pointer, camera );
+            const intersects = raycaster.intersectObjects( group.children );
+
+            if ( intersects.length > 0 ) {
+                let start = INTERSECTED.point;
+                let next = intersects[0].point;
+                let v = [next.x - start.x, next.y - start.y, next.z - start.z];
+                let largest = 0;
+                if (Math.abs(v[1]) > Math.abs(v[largest])) {
+                    largest = 1;
+                }
+                if (Math.abs(v[2]) > Math.abs(v[largest])) {
+                    largest = 2;
+                }
+                if (Math.abs(v[largest]) > 0.3) {
+                    let cube = INTERSECTED.object;
+
+                    let position = [cube.x, cube.y, cube.z];
+                    let side = normalToSide(INTERSECTED.face.normal);
+                    let axis = Math.floor(side / 2);
+                    let direction = v[largest] > 0 ? 1 : 0
+                    let back = side % 2 === 0 ? 1 : 0;
+
+                    let same = back === direction ? 0 : 1;
+                    let rotation = (axis + 1) % AXIS === largest ? same : 1 - same;
+
+                    let turning = (largest + 1) % AXIS;
+                    if (turning === axis) {
+                        turning = (turning + 1) % AXIS;
+                    }
+                    tryMove(turning, rotation, position[turning]);
+                }
+            }
+        }
+    }
 }
 
 function onWindowResize() {
