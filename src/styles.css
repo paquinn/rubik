@@ -1,0 +1,26 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+canvas {
+    width: 50%;
+    height: 100%;
+    display: block;
+}
+
+#cube, #history {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+}
+
+#divider {
+    position: absolute;
+    width: 5px;
+    height: 100%;
+    background-color: #000;
+    cursor: ew-resize;
+}

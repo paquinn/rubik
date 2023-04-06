@@ -5,6 +5,7 @@ import Stats from 'three/examples/jsm/libs/stats.module.js';
 import {GUI} from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import vertexShader from "../shaders/face.vert";
 import fragmentShader from "../shaders/face.frag";
+import '../styles.css';
 
 let stats;
 let camera, scene, renderer, controls, raycaster;
@@ -27,33 +28,6 @@ let configProps;
 
 let FACE_COLORS = [0xffffff, 0xff00ff, 0xffff00, 0xff0000, 0x00ff00, 0x0000ff];
 
-// const state = [
-//     [
-//         1, 1, 1,
-//         1, 0, 0,
-//         0, 0, 0,
-//     ], [
-//         0, 0, 0,
-//         0, 1, 1,
-//         1, 1, 1,
-//     ], [
-//         0, 0, 0,
-//         0, 2, 2,
-//         2, 2, 2,
-//     ], [
-//         0, 0, 0,
-//         0, 3, 3,
-//         3, 3, 3,
-//     ], [
-//         0, 0, 0,
-//         0, 4, 4,
-//         4, 4, 4,
-//     ], [
-//         0, 0, 0,
-//         0, 5, 5,
-//         5, 5, 5
-//     ]
-// ];
 
 function makeSide(color, size) {
     let side = [];
@@ -73,7 +47,7 @@ function blankCube(size) {
 
 
 // {cubes, axisLayers, size}
-let cubeScene;
+let cubeModel;
 
 // {group, mixers, actions}
 let cubeAnimations;
@@ -143,9 +117,8 @@ function stateFromArrays(scene, faceArrays) {
     });
 }
 
-
 function init() {
-    container = document.getElementById( 'c' );
+    container = document.getElementById( 'cube' );
     renderer = new THREE.WebGLRenderer( { antialias: true } );
     renderer.setPixelRatio( window.devicePixelRatio );
     renderer.setSize( window.innerWidth, window.innerHeight );
@@ -186,16 +159,16 @@ function init() {
     const cubeState = JSON.parse(localStorage.getItem('cubeState'));
     if (cubeState) {
         currentCubeState = cubeState;
-        cubeScene = buildCubes(cubeState.size);
+        cubeModel = buildCubes(cubeState.size);
     } else {
-        cubeScene = buildCubes(3);
-        currentCubeState = newCube(cubeScene);
+        cubeModel = buildCubes(3);
+        currentCubeState = newCube(cubeModel);
         saveState(currentCubeState);
     }
 
-    cubeAnimations = buildAnimations(cubeScene);
+    cubeAnimations = buildAnimations(cubeModel);
 
-    showState(cubeScene, currentCubeState);
+    showState(cubeModel, currentCubeState);
 
     scene.add(cubeAnimations.group);
 
@@ -204,24 +177,24 @@ function init() {
 
     const gui = new GUI();
     configProps = {
-        size: cubeScene.size,
+        size: cubeModel.size,
         axis: 0,
         layer: 0,
         rotation: 0,
         rotate: function() {
-            tryMove(cubeScene, currentCubeState, cubeAnimations, configProps.axis, configProps.rotation, configProps.layer);
+            tryMove(cubeModel, currentCubeState, cubeAnimations, configProps.axis, configProps.rotation, configProps.layer);
         },
         random: function() {
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 100; i++) {
                 let axis = Math.floor(Math.random() * AXIS);
                 let layer = Math.floor(Math.random() * configProps.size);
                 let rotation = Math.floor(Math.random() * 2);
-                tryMove(cubeScene, currentCubeState, cubeAnimations, axis, rotation, layer);
+                tryMove(cubeModel, currentCubeState, cubeAnimations, axis, rotation, layer);
             }
         },
         reset: function() {
-            currentCubeState = newCube(cubeScene);
-            showState(cubeScene, currentCubeState);
+            currentCubeState = newCube(cubeModel);
+            showState(cubeModel, currentCubeState);
         },
         duration: ANIMATION_DURATION
     };
@@ -237,12 +210,12 @@ function init() {
         // delete cubeScene.axisLayers
         // delete currentCubeState.axisColors
 
-        cubeScene = buildCubes(value);
-        currentCubeState = newCube(cubeScene);
+        cubeModel = buildCubes(value);
+        currentCubeState = newCube(cubeModel);
         saveState(currentCubeState);
-        cubeAnimations = buildAnimations(cubeScene);
+        cubeAnimations = buildAnimations(cubeModel);
         scene.add(cubeAnimations.group);
-        showState(cubeScene, currentCubeState);
+        showState(cubeModel, currentCubeState);
     });
 
     cubeFolder.add(configProps, 'duration', 0.1, 10.0);
@@ -256,7 +229,7 @@ function init() {
 
 
     stats = new Stats();
-    document.body.appendChild( stats.dom );
+    container.appendChild( stats.dom );
 
 
     // const wireframeFolder = gui.addFolder('Wireframe');
@@ -438,13 +411,13 @@ function buildAnimations(scene) {
 }
 
 
-function tryMove(scene, state, animations, axis, rotation, layer, duration = null) {
+function tryMove(model, state, animations, axis, rotation, layer, duration = null) {
     if (!moving) {
-        startMove(scene, state, animations, axis, rotation, layer, duration);
+        startMove(model, state, animations, axis, rotation, layer, duration);
     }
 }
 
-function startMove(scene, state, animations, axis, rotation, layer, duration) {
+function startMove(model, state, animations, axis, rotation, layer, duration) {
     if (duration) {
         moving = true;
         let action = animations.actions[axis][rotation][layer];
@@ -454,7 +427,7 @@ function startMove(scene, state, animations, axis, rotation, layer, duration) {
     }
 
     let swapped = [];
-    scene.axisLayers[axis][layer].forEach(function (cube, index) {
+    model.axisLayers[axis][layer].forEach(function (cube, index) {
         let colors = [...state.axisColors[cube.cubeId]];
         let a = (axis + 1) % AXIS;
         let b = (axis + 2) % AXIS;
@@ -469,7 +442,7 @@ function startMove(scene, state, animations, axis, rotation, layer, duration) {
         let axis2 = position[a];
         let axis3 = position[b];
 
-        let size = scene.size;
+        let size = model.size;
         let moved;
         if (rotation === 0) {
             moved = (size - axis3 - 1) + size * axis2;
@@ -487,14 +460,14 @@ function startMove(scene, state, animations, axis, rotation, layer, duration) {
         let swap = swapped[i];
         let colors = swap.colors;
         let moved = swap.moved;
-        let cube = scene.axisLayers[axis][layer][moved];
+        let cube = model.axisLayers[axis][layer][moved];
         state.axisColors[cube.cubeId] = colors;
     }
 
     saveState(state);
 
     if (!duration) {
-        showState(scene, state);
+        showState(model, state);
     }
 }
 
@@ -502,8 +475,8 @@ function saveState(state) {
     localStorage.cubeState = JSON.stringify(state);
 }
 
-function showState(scene, state) {
-    const cubes = scene.cubes;
+function showState(model, state) {
+    const cubes = model.cubes;
     const cubeState = state.axisColors;
     let c = new THREE.Color();
     for (let i = 0; i < cubes.length; i++) {
@@ -529,7 +502,7 @@ function showState(scene, state) {
 
 function endMove() {
     moving = false;
-    showState(cubeScene, currentCubeState);
+    showState(cubeModel, currentCubeState);
 }
 
 
@@ -609,7 +582,7 @@ function onPointerMove( event ) {
                     if (turning === axis) {
                         turning = (turning + 1) % AXIS;
                     }
-                    tryMove(cubeScene, currentCubeState, cubeAnimations, turning, rotation, position[turning], configProps.duration);
+                    tryMove(cubeModel, currentCubeState, cubeAnimations, turning, rotation, position[turning], configProps.duration);
                 }
             }
         }
@@ -617,10 +590,13 @@ function onPointerMove( event ) {
 }
 
 function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight
-    camera.updateProjectionMatrix()
-    renderer.setSize(window.innerWidth, window.innerHeight)
-    render()
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+    render();
 }
 
 function animate() {

@@ -15,6 +15,10 @@ module.exports = {
                 use: ['raw-loader', 'glslify-loader'],
                 exclude: /node_modules/,
             },
+            {
+                test: /\.css$/i, // Add this rule for CSS files
+                use: ['style-loader', 'css-loader'],
+            },
         ],
     },
     resolve: {
