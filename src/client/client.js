@@ -118,20 +118,62 @@ function stateFromArrays(scene, faceArrays) {
 }
 
 function init() {
+
+    const divider = document.querySelector('.divider');
+    let isDragging = false;
+
+    divider.addEventListener('mousedown', () => {
+        isDragging = true;
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            onWindowResize();
+        }
+        isDragging = false;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+
+        const container = document.querySelector('.container');
+        const containerRect = container.getBoundingClientRect();
+        const dividerWidth = divider.clientWidth;
+
+        let newLeftPaneWidth = e.clientX - containerRect.left - (dividerWidth / 2);
+        newLeftPaneWidth = Math.max(newLeftPaneWidth, 0);
+        newLeftPaneWidth = Math.min(newLeftPaneWidth, containerRect.width - dividerWidth);
+
+        document.querySelector('.left-pane').style.width = newLeftPaneWidth + 'px';
+        document.querySelector('.right-pane').style.left = (newLeftPaneWidth + dividerWidth) + 'px';
+
+        divider.style.left = newLeftPaneWidth + 'px';
+    });
+
+
     container = document.getElementById( 'cube' );
     renderer = new THREE.WebGLRenderer( { antialias: true } );
+
+    const { width, height } = container.getBoundingClientRect();
+    // let width = window.innerWidth;
+    // let height = window.innerHeight;
+
+    // let width = 300;
+    // let height = 300;
+
+    console.log(width, height);
+
     renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    container.appendChild( renderer.domElement );
+    renderer.setSize( width, height );
+
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0xf0f0f0 );
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
 
     // camera = new THREE.OrthographicCamera( width / -2, width / 2, height / 2, height / -2, 1, 1000);
-    camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
+    camera = new THREE.PerspectiveCamera( 50, width / height, 0.1, 100 );
     camera.position.set( 10, 10, 10 );
     const cameraPosition = JSON.parse(localStorage.getItem('cameraPosition'));
     if (cameraPosition) {
@@ -175,7 +217,11 @@ function init() {
 
     clock = new THREE.Clock();
 
-    const gui = new GUI();
+    // const gui = new GUI();
+    const gui = new GUI({ container: document.querySelector('.left-pane') });
+    // const gui = new GUI({ autoPlace: false });
+    // document.getElementById('gui').appendChild(gui.domElement);
+
     configProps = {
         size: cubeModel.size,
         axis: 0,
@@ -256,6 +302,9 @@ function init() {
     //     let rotation = Math.floor(Math.random() * 2);
     //     tryMove(axis, rotation, layer);
     // }, ANIMATION_DURATION * 1000);
+    container.appendChild( renderer.domElement );
+
+
 }
 
 function buildCubes(size) {
@@ -547,8 +596,10 @@ function onPointerMove( event ) {
     // calculate pointer position in normalized device coordinates
     // (-1 to +1) for both components
 
-    pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-    pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+    const { width, height } = container.getBoundingClientRect();
+
+    pointer.x = ( event.clientX / width ) * 2 - 1;
+    pointer.y = - ( event.clientY / height ) * 2 + 1;
 
     if (INTERSECTED) {
         if (!moving) {
@@ -590,8 +641,7 @@ function onPointerMove( event ) {
 }
 
 function onWindowResize() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const { width, height } = container.getBoundingClientRect();
 
     camera.aspect = width / height;
     camera.updateProjectionMatrix();

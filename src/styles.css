@@ -2,25 +2,58 @@ body, html {
     margin: 0;
     padding: 0;
     height: 100%;
-    overflow: hidden;
 }
 
-canvas {
-    width: 50%;
-    height: 100%;
-    display: block;
-}
-
-#cube, #history {
-    position: absolute;
+.container {
+    position: relative;
     height: 100%;
     width: 100%;
 }
 
-#divider {
+#cube {
+    height: 100%;
+    width: 100%;
+}
+
+.left-pane, .right-pane {
     position: absolute;
+    top: 0;
+    height: 100%;
+}
+
+.left-pane {
+    left: 0;
+    right: 50%;
+    background-color: lightblue;
+}
+
+.right-pane {
+    left: 50%;
+    right: 0;
+    background-color: lightcoral;
+}
+
+.divider {
+    position: absolute;
+    left: 50%;
+    background-color: gray;
     width: 5px;
     height: 100%;
-    background-color: #000;
+    z-index: 1;
     cursor: ew-resize;
+}
+
+#controls {
+    width: 30px;
+    height: 30px;
+    background-color: black;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.lil-gui.root {
+    position: absolute;
+    top: 0px;
+    right: 15px;
 }
