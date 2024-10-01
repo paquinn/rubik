@@ -21,7 +21,6 @@ const ANIMATION_DURATION = 1.0;
 
 let pointer;
 let INTERSECTED;
-
 let moving = false;
 
 let configProps;
@@ -474,6 +473,11 @@ function startMove(model, state, animations, axis, rotation, layer, duration) {
         action.setDuration(duration);
         action.play();
     }
+
+    let history = document.getElementById("history");
+    const newItem = document.createElement("li");
+    newItem.textContent = `${axis} ${rotation} ${layer}`;
+    history.appendChild(newItem);
 
     let swapped = [];
     model.axisLayers[axis][layer].forEach(function (cube, index) {

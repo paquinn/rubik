@@ -31,6 +31,7 @@ body, html {
     left: 50%;
     right: 0;
     background-color: lightcoral;
+    overflow-y: scroll;
 }
 
 .divider {
@@ -56,4 +57,9 @@ body, html {
     position: absolute;
     top: 0px;
     right: 15px;
+}
+
+#history {
+    border: 1px solid #ccc;
+    overflow-y: scroll;
 }
